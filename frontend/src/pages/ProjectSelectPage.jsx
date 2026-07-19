@@ -17,41 +17,39 @@ const COLORS = [
 export const ProjectSelectPage = () => {
     const navigate = useNavigate()
     const { user } = useAuthStore()
-    const { currentOrg, addProjectToOrg, setCurrentProject, getProjectsForCurrentOrg, setCurrentOrg, clearOrg } = useOrgStore()
+    const { currentOrg, addProjectToOrg, setCurrentProject, projects, setCurrentOrg, clearOrg } = useOrgStore()
     const [showCreate, setShowCreate] = useState(false)
     const [creating, setCreating] = useState(false)
     const [form, setForm] = useState({ name: '', description: '', color: COLORS[0].value, teamSize: 'Solo' })
 
-    const projects = getProjectsForCurrentOrg()
-
     const handleSelectProject = (project) => {
         setCurrentProject(project)
-        navigate(`/project/${project.id}`)
+        navigate(`/project/${project.id || project._id}`)
     }
 
     const handleCreateProject = async (e) => {
         e.preventDefault()
         if (!form.name.trim()) return toast.error('Project name required')
         setCreating(true)
-        await new Promise(r => setTimeout(r, 500))
-        const newProject = {
-            id: Date.now().toString(),
-            orgId: currentOrg.id,
-            name: form.name.trim(),
-            description: form.description.trim(),
-            color: form.color,
-            teamSize: form.teamSize,
-            tasks: [],
-            members: currentOrg.members || [],
-            createdAt: new Date().toISOString(),
-            createdBy: user?.email
+        try {
+            const newProject = {
+                name: form.name.trim(),
+                description: form.description.trim(),
+                color: form.color,
+                teamSize: form.teamSize
+            }
+            const orgId = currentOrg.id || currentOrg._id
+            const project = await addProjectToOrg(orgId, newProject)
+
+            setCurrentProject(project)
+            toast.success(`Project "${project.name}" created!`)
+            setCreating(false)
+            setShowCreate(false)
+            navigate(`/project/${project.id || project._id}`)
+        } catch (err) {
+            toast.error('Failed to create project')
+            setCreating(false)
         }
-        addProjectToOrg(newProject)
-        setCurrentProject(newProject)
-        toast.success(`Project "${newProject.name}" created!`)
-        setCreating(false)
-        setShowCreate(false)
-        navigate(`/project/${newProject.id}`)
     }
 
     const handleSwitchOrg = () => {
@@ -123,12 +121,12 @@ export const ProjectSelectPage = () => {
                 ) : (
                     <div className="space-y-2">
                         {projects.map(project => {
-                            const total = project.tasks?.length || 0
-                            const done = project.tasks?.filter(t => t.status === 'Done').length || 0
+                            const total = project.taskStats?.total || 0
+                            const done = project.taskStats?.Done || 0
                             const pct = total > 0 ? Math.round((done / total) * 100) : 0
                             return (
                                 <button
-                                    key={project.id}
+                                    key={project.id || project._id}
                                     onClick={() => handleSelectProject(project)}
                                     className="w-full flex items-center gap-4 px-4 py-4 rounded-xl border text-left transition-all group"
                                     style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}

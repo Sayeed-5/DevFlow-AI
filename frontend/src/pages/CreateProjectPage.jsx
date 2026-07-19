@@ -28,24 +28,26 @@ export const CreateProjectPage = () => {
         if (!form.name.trim()) return toast.error('Project name is required')
         if (!currentOrg) return toast.error('No organization selected')
         setLoading(true)
-        await new Promise(r => setTimeout(r, 400))
-        const newProject = {
-            id: Date.now().toString(),
-            orgId: currentOrg.id,
-            name: form.name.trim(),
-            description: form.description.trim(),
-            color: form.color,
-            teamSize: form.teamSize,
-            tasks: [],
-            members: currentOrg.members || [],
-            createdAt: new Date().toISOString(),
-            createdBy: user?.email
+
+        try {
+            const newProject = {
+                name: form.name.trim(),
+                description: form.description.trim(),
+                color: form.color,
+                teamSize: form.teamSize
+            }
+
+            const orgId = currentOrg.id || currentOrg._id
+            const project = await addProjectToOrg(orgId, newProject)
+
+            setCurrentProject(project)
+            toast.success(`Project "${project.name}" created!`)
+            navigate(`/project/${project.id || project._id}`)
+        } catch (err) {
+            toast.error('Failed to create project')
+        } finally {
+            setLoading(false)
         }
-        addProjectToOrg(newProject)
-        setCurrentProject(newProject)
-        toast.success(`Project "${newProject.name}" created!`)
-        setLoading(false)
-        navigate(`/project/${newProject.id}`)
     }
 
     return (

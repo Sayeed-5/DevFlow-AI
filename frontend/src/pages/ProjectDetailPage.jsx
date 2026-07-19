@@ -5,6 +5,7 @@ import { Sidebar } from '../components/layout/Sidebar'
 import { Navbar } from '../components/layout/Navbar'
 import { useOrgStore } from '../store/orgStore'
 import { useAuthStore } from '../store/authStore'
+import { inviteService } from '../services/inviteService'
 import toast from 'react-hot-toast'
 
 const PRIORITY_MAP = {
@@ -25,15 +26,23 @@ const isOverdue = (d, status) => d && status !== 'Done' && new Date(d) < new Dat
 
 // Mini invite modal
 const InviteModal = ({ orgId, onClose }) => {
-    const { inviteMember } = useOrgStore()
     const [emails, setEmails] = useState('')
-    const handleInvite = (e) => {
+    const [sending, setSending] = useState(false)
+
+    const handleInvite = async (e) => {
         e.preventDefault()
         const list = emails.split(',').map(e => e.trim()).filter(Boolean)
         if (!list.length) return toast.error('Enter at least one email')
-        list.forEach(email => inviteMember(orgId, email))
-        toast.success(`Invited ${list.length} member${list.length > 1 ? 's' : ''}`)
-        onClose()
+        setSending(true)
+        try {
+            await inviteService.sendInvites(orgId, list)
+            toast.success(`Invited ${list.length} member${list.length > 1 ? 's' : ''}`)
+            onClose()
+        } catch (err) {
+            toast.error('Failed to send invites')
+        } finally {
+            setSending(false)
+        }
     }
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -76,16 +85,16 @@ const AddTaskModal = ({ projectId, members, onClose, onAdded }) => {
         e.preventDefault()
         if (!form.title.trim()) return toast.error('Task title required')
         setSaving(true)
-        await new Promise(r => setTimeout(r, 300))
-        addTaskToProject(projectId, {
-            id: Date.now().toString(),
-            ...form,
-            createdAt: new Date().toISOString()
-        })
-        toast.success('Task added')
-        setSaving(false)
-        onAdded()
-        onClose()
+        try {
+            await addTaskToProject(projectId, form)
+            toast.success('Task added')
+            onAdded()
+            onClose()
+        } catch (err) {
+            toast.error('Failed to add task')
+        } finally {
+            setSaving(false)
+        }
     }
 
     return (
@@ -210,16 +219,22 @@ export const ProjectDetailPage = () => {
     const { projectId } = useParams()
     const navigate = useNavigate()
     const { user } = useAuthStore()
-    const { orgs, currentOrg, currentProject, setCurrentProject, deleteTaskFromProject, getProjectsForCurrentOrg } = useOrgStore()
+    const { orgs, currentOrg, projects, tasks, currentProject, setCurrentProject, deleteTaskFromProject } = useOrgStore()
     const [showInvite, setShowInvite] = useState(false)
     const [showAddTask, setShowAddTask] = useState(false)
     const [filterStatus, setFilterStatus] = useState('All')
     const [filterPriority, setFilterPriority] = useState('All')
 
+    // On unlinked visit, setCurrentProject to trigger fetchTasks
+    React.useEffect(() => {
+        if (!currentProject || currentProject._id !== projectId) {
+            const p = projects.find(pr => (pr._id || pr.id) === projectId)
+            if (p) setCurrentProject(p)
+        }
+    }, [projectId, projects, currentProject, setCurrentProject])
+
     // Resolve project from store
-    const projects = getProjectsForCurrentOrg()
-    const project = projects.find(p => p.id === projectId) || currentProject
-    const tasks = project?.tasks || []
+    const project = projects.find(p => (p._id || p.id) === projectId) || currentProject
 
     const total = tasks.length
     const done = tasks.filter(t => t.status === 'Done').length
@@ -231,10 +246,14 @@ export const ProjectDetailPage = () => {
         return matchStatus && matchPriority
     })
 
-    const handleDelete = (taskId) => {
+    const handleDelete = async (taskId) => {
         if (confirm('Delete this task?')) {
-            deleteTaskFromProject(projectId, taskId)
-            toast.success('Task deleted')
+            try {
+                await deleteTaskFromProject(projectId, taskId)
+                toast.success('Task deleted')
+            } catch (err) {
+                toast.error('Failed to delete task')
+            }
         }
     }
 
@@ -430,7 +449,7 @@ export const ProjectDetailPage = () => {
                                         {/* Delete */}
                                         <div>
                                             <button
-                                                onClick={() => handleDelete(task.id)}
+                                                onClick={() => handleDelete(task._id || task.id)}
                                                 className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                                                 style={{ color: '#737373' }}
                                                 onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}

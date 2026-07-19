@@ -4,6 +4,7 @@ import { Building2, Plus, ChevronDown, Check, X, Users } from 'lucide-react'
 import { useOrgStore } from '../store/orgStore'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
+import { inviteService } from '../services/inviteService'
 
 export const OrganizationSelectPage = () => {
     const navigate = useNavigate()
@@ -24,28 +25,28 @@ export const OrganizationSelectPage = () => {
         e.preventDefault()
         if (!form.name.trim()) return toast.error('Organization name required')
         setCreating(true)
-        await new Promise(r => setTimeout(r, 600))
-        const newOrg = {
-            id: Date.now().toString(),
-            name: form.name.trim(),
-            description: form.description.trim(),
-            createdBy: user?.email,
-            members: [
-                { id: user?.id || '1', email: user?.email, name: user?.name, role: 'owner' },
-                ...form.invites.split(',')
-                    .map(e => e.trim())
-                    .filter(Boolean)
-                    .map(email => ({ id: Date.now().toString() + Math.random(), email, role: 'member' }))
-            ],
-            projects: [],
-            createdAt: new Date().toISOString()
+        try {
+            const newOrg = {
+                name: form.name.trim(),
+                description: form.description.trim()
+            }
+            const org = await addOrg(newOrg)
+
+            // Handle invites
+            const list = form.invites.split(',').map(e => e.trim()).filter(Boolean)
+            if (list.length > 0) {
+                await inviteService.sendInvites(org.id || org._id, list)
+            }
+
+            setCurrentOrg(org)
+            toast.success(`"${org.name}" created!`)
+            setCreating(false)
+            setShowCreateForm(false)
+            navigate('/project-select')
+        } catch (err) {
+            toast.error('Failed to create organization')
+            setCreating(false)
         }
-        addOrg(newOrg)
-        setCurrentOrg(newOrg)
-        toast.success(`"${newOrg.name}" created!`)
-        setCreating(false)
-        setShowCreateForm(false)
-        navigate('/project-select')
     }
 
     return (
@@ -100,7 +101,7 @@ export const OrganizationSelectPage = () => {
                                         <div className="flex-1 min-w-0">
                                             <p className="font-medium text-sm truncate" style={{ color: '#ededed' }}>{org.name}</p>
                                             <p className="text-xs truncate" style={{ color: '#737373' }}>
-                                                {org.members?.length || 1} member{(org.members?.length || 1) !== 1 ? 's' : ''} • {org.projects?.length || 0} project{(org.projects?.length || 0) !== 1 ? 's' : ''}
+                                                {org.members?.length || 1} member{(org.members?.length || 1) !== 1 ? 's' : ''}
                                             </p>
                                         </div>
                                         <Check className="w-4 h-4 shrink-0 opacity-0" style={{ color: '#10b981' }} />
