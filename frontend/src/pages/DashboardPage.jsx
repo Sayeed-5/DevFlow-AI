@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useOrgStore } from '../store/orgStore'
+import { taskService } from '../services/taskService'
 import { Sidebar } from '../components/layout/Sidebar'
 import { Navbar } from '../components/layout/Navbar'
 import { CalendarDays, CheckCircle2, Clock, FolderOpen, TrendingUp, Plus } from 'lucide-react'
@@ -18,25 +19,23 @@ const isOverdue = (d) => d && new Date(d) < new Date()
 export const DashboardPage = () => {
     const navigate = useNavigate()
     const { user } = useAuthStore()
-    const { currentOrg, currentProject, getProjectsForCurrentOrg, setCurrentProject } = useOrgStore()
+    const { currentOrg, projects, setCurrentProject } = useOrgStore()
+    const [stats, setStats] = useState({ totalProjects: 0, totalTasks: 0, Todo: 0, 'In Progress': 0, Done: 0, overdue: 0 })
+    const [recentTasks, setRecentTasks] = useState([])
+    const [loading, setLoading] = useState(false)
 
-    const projects = getProjectsForCurrentOrg()
-    const allTasks = projects.flatMap(p =>
-        (p.tasks || []).map(t => ({ ...t, projectName: p.name, projectColor: p.color, projectId: p.id }))
-    )
-    const doneTasks = allTasks.filter(t => t.status === 'Done').length
-    const inProgress = allTasks.filter(t => t.status === 'In Progress').length
-    const overdue = allTasks.filter(t => t.status !== 'Done' && isOverdue(t.dueDate)).length
-
-    const recentTasks = [...allTasks]
-        .filter(t => t.status !== 'Done')
-        .sort((a, b) => {
-            if (!a.dueDate && !b.dueDate) return 0
-            if (!a.dueDate) return 1
-            if (!b.dueDate) return -1
-            return new Date(a.dueDate) - new Date(b.dueDate)
-        })
-        .slice(0, 8)
+    useEffect(() => {
+        if (!currentOrg) return
+        setLoading(true)
+        const orgId = currentOrg._id || currentOrg.id
+        Promise.all([
+            taskService.getDashboardStats(orgId),
+            taskService.getRecentTasks(orgId)
+        ])
+            .then(([s, rt]) => { setStats(s); setRecentTasks(rt) })
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false))
+    }, [currentOrg])
 
     const h = new Date().getHours()
     const greeting = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
@@ -58,7 +57,6 @@ export const DashboardPage = () => {
                     }
                 </div>
 
-                {/* No org CTA */}
                 {!currentOrg && (
                     <div className="rounded-2xl border p-10 text-center" style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}>
                         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: '#052e16' }}>
@@ -74,10 +72,10 @@ export const DashboardPage = () => {
                         {/* Stats */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                             {[
-                                { label: 'Total Projects', value: projects.length, icon: FolderOpen, color: '#10b981', bg: '#052e16' },
-                                { label: 'Total Tasks', value: allTasks.length, icon: TrendingUp, color: '#38bdf8', bg: '#0c1a2e' },
-                                { label: 'In Progress', value: inProgress, icon: Clock, color: '#f59e0b', bg: '#1c1200' },
-                                { label: 'Overdue', value: overdue, icon: CalendarDays, color: '#ef4444', bg: '#2d0a0a' },
+                                { label: 'Total Projects', value: stats.totalProjects, icon: FolderOpen, color: '#10b981', bg: '#052e16' },
+                                { label: 'Total Tasks', value: stats.totalTasks, icon: TrendingUp, color: '#38bdf8', bg: '#0c1a2e' },
+                                { label: 'In Progress', value: stats['In Progress'], icon: Clock, color: '#f59e0b', bg: '#1c1200' },
+                                { label: 'Overdue', value: stats.overdue, icon: CalendarDays, color: '#ef4444', bg: '#2d0a0a' },
                             ].map(stat => (
                                 <div key={stat.label} className="rounded-xl border p-4" style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}>
                                     <div className="flex items-center justify-between mb-3">
@@ -86,7 +84,9 @@ export const DashboardPage = () => {
                                             <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
                                         </div>
                                     </div>
-                                    <p className="text-2xl font-bold" style={{ color: '#ededed' }}>{stat.value}</p>
+                                    <p className="text-2xl font-bold" style={{ color: '#ededed' }}>
+                                        {loading ? '-' : stat.value}
+                                    </p>
                                 </div>
                             ))}
                         </div>
@@ -100,7 +100,9 @@ export const DashboardPage = () => {
                                         {recentTasks.length} pending
                                     </span>
                                 </div>
-                                {recentTasks.length === 0 ? (
+                                {loading ? (
+                                    <div className="py-12 text-center text-sm" style={{ color: '#737373' }}>Loading tasks...</div>
+                                ) : recentTasks.length === 0 ? (
                                     <div className="py-12 text-center">
                                         <CheckCircle2 className="w-8 h-8 mx-auto mb-2" style={{ color: '#10b981' }} />
                                         <p className="text-sm" style={{ color: '#737373' }}>All caught up!</p>
@@ -111,19 +113,20 @@ export const DashboardPage = () => {
                                             const p = PRIORITY_MAP[task.priority] || PRIORITY_MAP.P2
                                             const due = formatDate(task.dueDate)
                                             const od = isOverdue(task.dueDate)
+                                            const projColor = task.project?.color || '#10b981'
                                             return (
-                                                <div key={task.id}
-                                                    onClick={() => { setCurrentProject(projects.find(pr => pr.id === task.projectId)); navigate(`/project/${task.projectId}`) }}
+                                                <div key={task._id}
+                                                    onClick={() => { setCurrentProject(task.project); navigate(`/project/${task.project._id}`) }}
                                                     className="px-5 py-3 flex items-center gap-3 cursor-pointer hover:bg-white/[0.02] transition-colors">
-                                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: task.projectColor || '#10b981' }} />
+                                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: projColor }} />
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-sm font-medium truncate" style={{ color: '#ededed' }}>{task.title}</p>
-                                                        <p className="text-xs mt-0.5" style={{ color: '#525252' }}>{task.projectName}</p>
+                                                        <p className="text-xs mt-0.5" style={{ color: '#525252' }}>{task.project?.name || 'Unknown'}</p>
                                                     </div>
                                                     {task.assignee && (
                                                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                                                             style={{ background: '#242424', color: '#737373' }}>
-                                                            {task.assignee[0].toUpperCase()}
+                                                            {(task.assignee.name || task.assignee.email)[0].toUpperCase()}
                                                         </div>
                                                     )}
                                                     <span className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
@@ -162,12 +165,12 @@ export const DashboardPage = () => {
                                 ) : (
                                     <div className="p-3 space-y-2">
                                         {projects.map(proj => {
-                                            const total = proj.tasks?.length || 0
-                                            const done = proj.tasks?.filter(t => t.status === 'Done').length || 0
+                                            const total = proj.taskStats?.total || 0
+                                            const done = proj.taskStats?.Done || 0
                                             const pct = total > 0 ? Math.round((done / total) * 100) : 0
                                             return (
-                                                <button key={proj.id}
-                                                    onClick={() => { setCurrentProject(proj); navigate(`/project/${proj.id}`) }}
+                                                <button key={proj._id}
+                                                    onClick={() => { setCurrentProject(proj); navigate(`/project/${proj._id}`) }}
                                                     className="w-full text-left px-3 py-3 rounded-xl transition-all"
                                                     style={{ background: '#242424' }}
                                                     onMouseEnter={e => e.currentTarget.style.background = '#2a2a2a'}

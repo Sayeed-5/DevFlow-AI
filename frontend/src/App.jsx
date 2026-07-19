@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/authStore'
@@ -20,6 +20,13 @@ const ProtectedRoute = ({ children }) => {
 
 const App = () => {
     const isAuthenticated = useAuthStore(state => state.isAuthenticated)
+    const { fetchOrgs } = useOrgStore()
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            fetchOrgs()
+        }
+    }, [isAuthenticated, fetchOrgs])
 
     return (
         <BrowserRouter>

@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '../store/authStore'
 import { useOrgStore } from '../store/orgStore'
+import { taskService } from '../services/taskService'
 import { Sidebar } from '../components/layout/Sidebar'
 import { Navbar } from '../components/layout/Navbar'
-import { ListChecks, CalendarDays, Clock, FolderOpen } from 'lucide-react'
+import { ListChecks, CalendarDays } from 'lucide-react'
 
 const PRIORITY_MAP = {
     P1: { label: 'High', color: '#f87171', bg: '#2d0a0a' },
@@ -22,35 +22,16 @@ const isOverdue = (d, status) => d && status !== 'Done' && new Date(d) < new Dat
 
 export const MyTasksPage = () => {
     const navigate = useNavigate()
-    const { user } = useAuthStore()
-    const { orgs, setCurrentProject, getProjectsForCurrentOrg } = useOrgStore()
+    const { setCurrentProject } = useOrgStore()
+    const [myTasks, setMyTasks] = useState([])
+    const [loading, setLoading] = useState(true)
 
-    // Collect tasks assigned to logged-in user across ALL orgs and ALL projects
-    const myTasks = []
-    orgs.forEach(org => {
-        (org.projects || []).forEach(proj => {
-            (proj.tasks || []).forEach(task => {
-                const assigneeLower = (task.assignee || '').toLowerCase()
-                const userNameLower = (user?.name || '').toLowerCase()
-                const userEmailLower = (user?.email || '').toLowerCase()
-                if (assigneeLower && (assigneeLower.includes(userNameLower) || assigneeLower.includes(userEmailLower) || userNameLower.includes(assigneeLower))) {
-                    myTasks.push({ ...task, projectName: proj.name, projectColor: proj.color, projectId: proj.id, orgName: org.name, project: proj })
-                }
-            })
-        })
-    })
-
-    // Sort: overdue first, then by dueDate, then no date
-    myTasks.sort((a, b) => {
-        const aOd = isOverdue(a.dueDate, a.status)
-        const bOd = isOverdue(b.dueDate, b.status)
-        if (aOd && !bOd) return -1
-        if (!aOd && bOd) return 1
-        if (!a.dueDate && !b.dueDate) return 0
-        if (!a.dueDate) return 1
-        if (!b.dueDate) return -1
-        return new Date(a.dueDate) - new Date(b.dueDate)
-    })
+    useEffect(() => {
+        taskService.getMyTasks()
+            .then(tasks => setMyTasks(tasks))
+            .catch(err => console.error(err))
+            .finally(() => setLoading(false))
+    }, [])
 
     const totalDone = myTasks.filter(t => t.status === 'Done').length
     const totalPending = myTasks.filter(t => t.status !== 'Done').length
@@ -78,13 +59,15 @@ export const MyTasksPage = () => {
                     ].map(s => (
                         <div key={s.label} className="px-4 py-2 rounded-lg border" style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}>
                             <span className="text-xs" style={{ color: '#737373' }}>{s.label}: </span>
-                            <span className="font-semibold text-sm" style={{ color: s.color }}>{s.value}</span>
+                            <span className="font-semibold text-sm" style={{ color: s.color }}>{loading ? '-' : s.value}</span>
                         </div>
                     ))}
                 </div>
 
                 {/* Tasks */}
-                {myTasks.length === 0 ? (
+                {loading ? (
+                    <div className="py-20 text-center text-sm" style={{ color: '#737373' }}>Loading tasks...</div>
+                ) : myTasks.length === 0 ? (
                     <div className="rounded-2xl border py-20 text-center" style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}>
                         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: '#242424' }}>
                             <ListChecks className="w-6 h-6" style={{ color: '#525252' }} />
@@ -108,9 +91,10 @@ export const MyTasksPage = () => {
                                 const p = PRIORITY_MAP[task.priority] || PRIORITY_MAP.P2
                                 const s = STATUS_MAP[task.status] || STATUS_MAP['Todo']
                                 const od = isOverdue(task.dueDate, task.status)
+
                                 return (
-                                    <div key={task.id}
-                                        onClick={() => { setCurrentProject(task.project); navigate(`/project/${task.projectId}`) }}
+                                    <div key={task._id}
+                                        onClick={() => { setCurrentProject(task.project); navigate(`/project/${task.project._id}`) }}
                                         className="grid px-5 py-3.5 items-center cursor-pointer hover:bg-white/[0.018] transition-colors"
                                         style={{ gridTemplateColumns: '1fr 160px 130px 110px 110px' }}>
                                         {/* Title */}
@@ -123,10 +107,10 @@ export const MyTasksPage = () => {
                                         </div>
                                         {/* Project */}
                                         <div className="flex items-center gap-1.5">
-                                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: task.projectColor || '#10b981' }} />
+                                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: task.project?.color || '#10b981' }} />
                                             <div className="min-w-0">
-                                                <p className="text-xs font-medium truncate" style={{ color: '#a3a3a3' }}>{task.projectName}</p>
-                                                <p className="text-xs truncate" style={{ color: '#525252' }}>{task.orgName}</p>
+                                                <p className="text-xs font-medium truncate" style={{ color: '#a3a3a3' }}>{task.project?.name || 'Project'}</p>
+                                                <p className="text-xs truncate" style={{ color: '#525252' }}>{task.organization?.name || 'Org'}</p>
                                             </div>
                                         </div>
                                         {/* Due Date */}

@@ -171,4 +171,26 @@ const getDashboardStats = async (req, res) => {
   }
 }
 
-module.exports = { createTask, getTasksByProject, getTask, updateTask, deleteTask, getMyTasks, getDashboardStats }
+// @desc   Get recent active tasks for an org (for Dashboard)
+// @route  GET /api/tasks/recent?orgId=xxx
+const getRecentTasks = async (req, res) => {
+  try {
+    const { orgId } = req.query
+    if (!orgId) return res.status(400).json({ message: 'orgId is required' })
+
+    const tasks = await Task.find({
+      organization: orgId,
+      status: { $ne: 'Done' }
+    })
+      .populate('project', 'name color')
+      .populate('assignee', 'name email avatar')
+      .sort({ dueDate: 1 })
+      .limit(8)
+
+    res.json({ tasks })
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch recent tasks', error: err.message })
+  }
+}
+
+module.exports = { createTask, getTasksByProject, getTask, updateTask, deleteTask, getMyTasks, getDashboardStats, getRecentTasks }

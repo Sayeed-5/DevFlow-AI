@@ -1,95 +1,120 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { orgService } from '../services/orgService'
+import { projectService } from '../services/projectService'
+import { taskService } from '../services/taskService'
 
-export const useOrgStore = create(persist((set, get) => ({
+export const useOrgStore = create((set, get) => ({
     orgs: [],
     currentOrg: null,
     currentProject: null,
+    projects: [],   // store projects for current org
+    tasks: [],      // store tasks for current project
+    loading: false,
 
-    setOrgs: (orgs) => set({ orgs }),
+    // ─── INITIALIZATION / FETCHING ──────────────────────────────────────────
 
-    addOrg: (org) => set((state) => ({ orgs: [...state.orgs, org] })),
-
-    setCurrentOrg: (org) => set({ currentOrg: org, currentProject: null }),
-
-    setCurrentProject: (project) => set({ currentProject: project }),
-
-    updateProjectInOrg: (updatedProject) => set((state) => ({
-        orgs: state.orgs.map(org =>
-            org.id === updatedProject.orgId
-                ? { ...org, projects: org.projects.map(p => p.id === updatedProject.id ? updatedProject : p) }
-                : org
-        ),
-        currentProject: state.currentProject?.id === updatedProject.id ? updatedProject : state.currentProject
-    })),
-
-    addProjectToOrg: (project) => set((state) => ({
-        orgs: state.orgs.map(org =>
-            org.id === project.orgId
-                ? { ...org, projects: [...(org.projects || []), project] }
-                : org
-        )
-    })),
-
-    getProjectsForCurrentOrg: () => {
-        const { orgs, currentOrg } = get()
-        if (!currentOrg) return []
-        const org = orgs.find(o => o.id === currentOrg.id)
-        return org?.projects || []
+    fetchOrgs: async () => {
+        try {
+            set({ loading: true })
+            const orgs = await orgService.getMyOrgs()
+            set({ orgs, loading: false })
+            
+            // Auto-select first org if none selected but available
+            const { currentOrg } = get()
+            if (!currentOrg && orgs.length > 0) {
+                set({ currentOrg: orgs[0] })
+                await get().fetchProjects(orgs[0]._id)
+            }
+        } catch (error) {
+            console.error('Failed to fetch orgs:', error)
+            set({ loading: false })
+        }
     },
 
-    inviteMember: (orgId, email) => set((state) => ({
-        orgs: state.orgs.map(org =>
-            org.id === orgId
-                ? { ...org, members: [...(org.members || []), { email, role: 'member', id: Date.now().toString() }] }
-                : org
-        )
-    })),
+    fetchProjects: async (orgId) => {
+        try {
+            const projects = await projectService.getProjects(orgId)
+            set({ projects })
+        } catch (error) {
+            console.error('Failed to fetch projects:', error)
+        }
+    },
 
-    clearOrg: () => set({ currentOrg: null, currentProject: null }),
+    fetchTasks: async (orgId, projectId) => {
+        try {
+            // Note: backend taskService takes projectId, not orgId
+            const tasks = await taskService.getTasksByProject(projectId)
+            set({ tasks })
+        } catch (error) {
+            console.error('Failed to fetch tasks:', error)
+        }
+    },
 
-    updateTaskInProject: (projectId, updatedTask) => set((state) => {
-        const newOrgs = state.orgs.map(org => ({
-            ...org,
-            projects: (org.projects || []).map(proj =>
-                proj.id === projectId
-                    ? { ...proj, tasks: (proj.tasks || []).map(t => t.id === updatedTask.id ? updatedTask : t) }
-                    : proj
-            )
+    // ─── ACTIONS ─────────────────────────────────────────────────────────────
+
+    setCurrentOrg: async (org) => {
+        // use _id or id gracefully
+        set({ currentOrg: org, currentProject: null, projects: [], tasks: [] })
+        if (org) {
+            await get().fetchProjects(org.id || org._id)
+        }
+    },
+
+    setCurrentProject: async (project) => {
+        set({ currentProject: project, tasks: [] })
+        if (project) {
+            const orgId = get().currentOrg?.id || get().currentOrg?._id || project.organization
+            await get().fetchTasks(orgId, project.id || project._id)
+        }
+    },
+
+    addOrg: async (orgData) => {
+        // Note: the component should ideally call this, but if we do it in store:
+        // Already handled locally by components usually (they call API, then fetchOrgs).
+        // Let's implement full async wrappers here so components don't change much.
+        const org = await orgService.createOrg(orgData)
+        set(state => ({ orgs: [org, ...state.orgs], currentOrg: org, projects: [] }))
+        return org
+    },
+
+    addProjectToOrg: async (orgId, projectData) => {
+        const project = await projectService.createProject(orgId, projectData)
+        set(state => ({ projects: [project, ...state.projects] }))
+        return project
+    },
+
+    updateProjectInOrg: async (orgId, projectId, updateData) => {
+        const updated = await projectService.updateProject(orgId, projectId, updateData)
+        set(state => ({
+            projects: state.projects.map(p => (p.id || p._id) === projectId ? updated : p),
+            currentProject: (state.currentProject?.id || state.currentProject?._id) === projectId ? updated : state.currentProject
         }))
-        const currentProject = state.currentProject?.id === projectId
-            ? { ...state.currentProject, tasks: (state.currentProject.tasks || []).map(t => t.id === updatedTask.id ? updatedTask : t) }
-            : state.currentProject
-        return { orgs: newOrgs, currentProject }
-    }),
+        return updated
+    },
 
-    addTaskToProject: (projectId, task) => set((state) => {
-        const newOrgs = state.orgs.map(org => ({
-            ...org,
-            projects: (org.projects || []).map(proj =>
-                proj.id === projectId
-                    ? { ...proj, tasks: [...(proj.tasks || []), task] }
-                    : proj
-            )
-        }))
-        const currentProject = state.currentProject?.id === projectId
-            ? { ...state.currentProject, tasks: [...(state.currentProject.tasks || []), task] }
-            : state.currentProject
-        return { orgs: newOrgs, currentProject }
-    }),
+    addTaskToProject: async (projectId, taskData) => {
+        const task = await taskService.createTask(projectId, taskData)
+        set(state => ({ tasks: [task, ...state.tasks] }))
+        return task
+    },
 
-    deleteTaskFromProject: (projectId, taskId) => set((state) => {
-        const newOrgs = state.orgs.map(org => ({
-            ...org,
-            projects: (org.projects || []).map(proj =>
-                proj.id === projectId
-                    ? { ...proj, tasks: (proj.tasks || []).filter(t => t.id !== taskId) }
-                    : proj
-            )
+    updateTaskInProject: async (projectId, taskId, updateData) => {
+        const updated = await taskService.updateTask(projectId, taskId, updateData)
+        set(state => ({
+            tasks: state.tasks.map(t => (t.id || t._id) === taskId ? updated : t)
         }))
-        const currentProject = state.currentProject?.id === projectId
-            ? { ...state.currentProject, tasks: (state.currentProject.tasks || []).filter(t => t.id !== taskId) }
-            : state.currentProject
-        return { orgs: newOrgs, currentProject }
-    }),
-}), { name: 'org-storage' }))
+        return updated
+    },
+
+    deleteTaskFromProject: async (projectId, taskId) => {
+        await taskService.deleteTask(projectId, taskId)
+        set(state => ({
+            tasks: state.tasks.filter(t => (t.id || t._id) !== taskId)
+        }))
+    },
+
+    // Legacy sync methods just for safety (will fade out as we convert components)
+    getProjectsForCurrentOrg: () => get().projects,
+    
+    clearOrg: () => set({ currentOrg: null, currentProject: null, projects: [], tasks: [] }),
+}))

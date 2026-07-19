@@ -87,13 +87,11 @@ const CreateOrgModal = ({ onClose }) => {
 
 export const Sidebar = () => {
     const { user, logout } = useAuthStore()
-    const { orgs, currentOrg, setCurrentOrg, getProjectsForCurrentOrg, setCurrentProject } = useOrgStore()
+    const { orgs, currentOrg, setCurrentOrg, projects, setCurrentProject } = useOrgStore()
     const navigate = useNavigate()
     const location = useLocation()
     const [orgDropdownOpen, setOrgDropdownOpen] = useState(false)
     const [showCreateOrg, setShowCreateOrg] = useState(false)
-
-    const projects = getProjectsForCurrentOrg()
 
     const handleLogout = () => { logout(); navigate('/login') }
 
@@ -148,8 +146,8 @@ export const Sidebar = () => {
                                 <div className="mt-1 rounded-xl border overflow-hidden shadow-xl"
                                     style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}>
                                     {/* Other orgs */}
-                                    {orgs.filter(o => o.id !== currentOrg.id).map(org => (
-                                        <button key={org.id} onClick={() => handleSwitchOrg(org)}
+                                    {orgs.filter(o => (o.id || o._id) !== (currentOrg.id || currentOrg._id)).map(org => (
+                                        <button key={org.id || org._id} onClick={() => handleSwitchOrg(org)}
                                             className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-white/5 transition-colors">
                                             <div className="w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs shrink-0"
                                                 style={{ background: '#052e16', color: '#10b981' }}>
@@ -160,7 +158,7 @@ export const Sidebar = () => {
                                     ))}
 
                                     {/* Divider only if other orgs exist */}
-                                    {orgs.filter(o => o.id !== currentOrg.id).length > 0 && (
+                                    {orgs.filter(o => (o.id || o._id) !== (currentOrg.id || currentOrg._id)).length > 0 && (
                                         <div className="h-px mx-3" style={{ background: '#2a2a2a' }} />
                                     )}
 
@@ -232,18 +230,18 @@ export const Sidebar = () => {
                             ) : (
                                 <div className="space-y-0.5">
                                     {projects.map(project => (
-                                        <button key={project.id} onClick={() => handleProjectClick(project)}
+                                        <button key={project.id || project._id} onClick={() => handleProjectClick(project)}
                                             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-all"
                                             style={{
-                                                background: isProjectActive(project.id) ? 'rgba(16,185,129,0.1)' : 'transparent',
-                                                color: isProjectActive(project.id) ? '#10b981' : '#a3a3a3'
+                                                background: isProjectActive(project.id || project._id) ? 'rgba(16,185,129,0.1)' : 'transparent',
+                                                color: isProjectActive(project.id || project._id) ? '#10b981' : '#a3a3a3'
                                             }}
-                                            onMouseEnter={e => { if (!isProjectActive(project.id)) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-                                            onMouseLeave={e => { if (!isProjectActive(project.id)) e.currentTarget.style.background = 'transparent' }}>
+                                            onMouseEnter={e => { if (!isProjectActive(project.id || project._id)) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                                            onMouseLeave={e => { if (!isProjectActive(project.id || project._id)) e.currentTarget.style.background = 'transparent' }}>
                                             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: project.color || '#10b981' }} />
                                             <span className="truncate">{project.name}</span>
                                             <span className="ml-auto text-xs shrink-0" style={{ color: '#525252' }}>
-                                                {project.tasks?.length || 0}
+                                                {project.taskStats?.total || 0}
                                             </span>
                                         </button>
                                     ))}

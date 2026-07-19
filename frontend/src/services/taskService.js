@@ -24,5 +24,9 @@ export const taskService = {
   getDashboardStats: async (orgId) => {
     const { data } = await api.get(`/tasks/stats?orgId=${orgId}`)
     return data.stats
+  },
+  getRecentTasks: async (orgId) => {
+    const { data } = await api.get(`/tasks/recent?orgId=${orgId}`)
+    return data.tasks
   }
 }
