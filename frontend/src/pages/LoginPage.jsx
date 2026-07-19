@@ -32,6 +32,17 @@ export const LoginPage = () => {
         try {
             const { user, token } = await authService.login(email, password)
             login(user, token)
+
+            const inviteToken = sessionStorage.getItem('invite_token')
+            if (inviteToken) {
+                try {
+                    const { inviteService } = await import('../services/inviteService')
+                    await inviteService.acceptInvitation(inviteToken)
+                } catch (e) { }
+                sessionStorage.removeItem('invite_token')
+                sessionStorage.removeItem('invite_email')
+            }
+
             navigate('/dashboard')
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed. Check your credentials.')

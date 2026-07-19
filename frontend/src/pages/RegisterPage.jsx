@@ -18,7 +18,7 @@ const inputStyle = {
 
 export const RegisterPage = () => {
     const [name, setName] = useState('')
-    const [email, setEmail] = useState('')
+    const [email, setEmail] = useState(sessionStorage.getItem('invite_email') || '')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
@@ -33,6 +33,19 @@ export const RegisterPage = () => {
         try {
             const { user, token } = await authService.register(name, email, password)
             login(user, token)
+
+            // Auto accept invite if token present
+            const inviteToken = sessionStorage.getItem('invite_token')
+            if (inviteToken) {
+                try {
+                    const { inviteService } = await import('../services/inviteService')
+                    await inviteService.acceptInvitation(inviteToken)
+                    toast?.success('Invite accepted!')
+                } catch (e) { }
+                sessionStorage.removeItem('invite_token')
+                sessionStorage.removeItem('invite_email')
+            }
+
             navigate('/dashboard')
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed.')

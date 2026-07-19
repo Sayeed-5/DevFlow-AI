@@ -11,6 +11,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { CreateProjectPage } from './pages/CreateProjectPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { MyTasksPage } from './pages/MyTasksPage'
+import { InviteAcceptPage } from './pages/InviteAcceptPage'
 
 const ProtectedRoute = ({ children }) => {
     const isAuthenticated = useAuthStore(state => state.isAuthenticated)
@@ -49,6 +50,7 @@ const App = () => {
 
                 <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
                 <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <RegisterPage />} />
+                <Route path="/invite/accept" element={<InviteAcceptPage />} />
 
                 <Route path="/org-select" element={
                     <ProtectedRoute><OrganizationSelectPage /></ProtectedRoute>
