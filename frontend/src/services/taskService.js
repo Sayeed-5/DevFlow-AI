@@ -1,24 +1,28 @@
 import api from './api'
 
 export const taskService = {
+  createTask: async (projectId, taskData) => {
+    const { data } = await api.post(`/projects/${projectId}/tasks`, taskData)
+    return data.task
+  },
   getTasksByProject: async (projectId) => {
-    const { data } = await api.get(`/tasks?projectId=${projectId}`)
+    const { data } = await api.get(`/projects/${projectId}/tasks`)
+    return data.tasks
+  },
+  updateTask: async (projectId, taskId, updateData) => {
+    const { data } = await api.put(`/projects/${projectId}/tasks/${taskId}`, updateData)
+    return data.task
+  },
+  deleteTask: async (projectId, taskId) => {
+    const { data } = await api.delete(`/projects/${projectId}/tasks/${taskId}`)
     return data
   },
-  createTask: async (taskData) => {
-    const { data } = await api.post('/tasks', taskData)
-    return data
+  getMyTasks: async () => {
+    const { data } = await api.get('/tasks/my-tasks')
+    return data.tasks
   },
-  updateTask: async (id, taskData) => {
-    const { data } = await api.patch(`/tasks/${id}`, taskData)
-    return data
-  },
-  updateTaskStatus: async (id, status) => {
-    const { data } = await api.patch(`/tasks/${id}/status`, { status })
-    return data
-  },
-  deleteTask: async (id) => {
-    const { data } = await api.delete(`/tasks/${id}`)
-    return data
+  getDashboardStats: async (orgId) => {
+    const { data } = await api.get(`/tasks/stats?orgId=${orgId}`)
+    return data.stats
   }
 }

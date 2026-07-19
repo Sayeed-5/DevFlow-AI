@@ -1,24 +1,24 @@
 import api from './api'
 
 export const projectService = {
-  getProjects: async () => {
-    const { data } = await api.get('/projects')
-    return data
+  createProject: async (orgId, projectData) => {
+    const { data } = await api.post(`/organizations/${orgId}/projects`, projectData)
+    return data.project
   },
-  getStats: async () => {
-    const { data } = await api.get('/projects/stats')
-    return data
+  getProjects: async (orgId) => {
+    const { data } = await api.get(`/organizations/${orgId}/projects`)
+    return data.projects
   },
-  analyzeIdea: async (ideaText, type, teamSize) => {
-    const { data } = await api.post('/projects/analyze', { ideaText, type, teamSize })
-    return data
+  getProject: async (orgId, projectId) => {
+    const { data } = await api.get(`/organizations/${orgId}/projects/${projectId}`)
+    return data // { project, tasks }
   },
-  createProject: async (projectData) => {
-    const { data } = await api.post('/projects', projectData)
-    return data
+  updateProject: async (orgId, projectId, updateData) => {
+    const { data } = await api.put(`/organizations/${orgId}/projects/${projectId}`, updateData)
+    return data.project
   },
-  getProjectById: async (id) => {
-    const { data } = await api.get(`/projects/${id}`)
+  deleteProject: async (orgId, projectId) => {
+    const { data } = await api.delete(`/organizations/${orgId}/projects/${projectId}`)
     return data
   }
 }
