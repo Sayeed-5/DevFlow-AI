@@ -45,27 +45,27 @@ export const TaskModal = ({ task, onClose, onUpdate, onDelete }) => {
     }
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl w-full max-w-md p-6 relative">
-                <button onClick={onClose} className="absolute right-4 top-4 text-neutral-400 hover:text-white transition-colors">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-brand-1 shadow-sm border border-brand-2/40 rounded-xl w-full max-w-md p-6 relative">
+                <button onClick={onClose} className="absolute right-4 top-4 text-gray-700 hover:text-gray-900 transition-colors">
                     <X className="w-5 h-5" />
                 </button>
-                <h2 className="text-lg font-semibold text-white mb-4">Edit Task</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Edit Task</h2>
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm text-neutral-400 mb-1">Title</label>
+                        <label className="block text-sm text-gray-700 mb-1">Title</label>
                         <Input name="title" value={formData.title} onChange={handleChange} placeholder="Task title" />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm text-neutral-400 mb-1">Status</label>
+                            <label className="block text-sm text-gray-700 mb-1">Status</label>
                             <select
                                 name="status"
                                 value={formData.status}
                                 onChange={handleChange}
-                                className="w-full bg-[#242424] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+                                className="w-full bg-white/60 border border-brand-2/40 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-4/40 appearance-none"
                             >
                                 <option value="Todo">Todo</option>
                                 <option value="In Progress">In Progress</option>
@@ -73,12 +73,12 @@ export const TaskModal = ({ task, onClose, onUpdate, onDelete }) => {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm text-neutral-400 mb-1">Priority</label>
+                            <label className="block text-sm text-gray-700 mb-1">Priority</label>
                             <select
                                 name="priority"
                                 value={formData.priority}
                                 onChange={handleChange}
-                                className="w-full bg-[#242424] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
+                                className="w-full bg-white/60 border border-brand-2/40 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-4/40 appearance-none"
                             >
                                 <option value="P1">P1</option>
                                 <option value="P2">P2</option>
@@ -88,13 +88,13 @@ export const TaskModal = ({ task, onClose, onUpdate, onDelete }) => {
                     </div>
 
                     <div>
-                        <label className="block text-sm text-neutral-400 mb-1">Description</label>
+                        <label className="block text-sm text-gray-700 mb-1">Description</label>
                         <textarea
                             name="description"
                             value={formData.description}
                             onChange={handleChange}
                             rows={3}
-                            className="w-full bg-[#242424] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
+                            className="w-full bg-white/60 border border-brand-2/40 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-4/40 resize-none"
                             placeholder="Task description..."
                         />
                     </div>

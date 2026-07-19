@@ -1,22 +1,28 @@
 import React from 'react'
-import { useAuthStore } from '../../store/authStore'
+import { useOrgStore } from '../../store/orgStore'
 
 export const Navbar = ({ title }) => {
-    const { user } = useAuthStore()
-
-    const getInitials = (name) => {
-        if (!name) return 'U'
-        return name.substring(0, 2).toUpperCase()
-    }
+    const { currentOrg, currentProject } = useOrgStore()
 
     return (
-        <header className="fixed top-0 left-[220px] right-0 h-14 bg-[#0f0f0f] border-b border-white/8 z-10 flex items-center justify-between px-6">
-            <h1 className="text-lg font-semibold text-white truncate">{title}</h1>
-            <div className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-medium text-white">
-                    {getInitials(user?.name)}
+        <header
+            className="fixed top-0 left-[240px] right-0 h-14 z-20 flex items-center justify-between px-6"
+            style={{ background: '#0a0a0a', borderBottom: '1px solid #1f1f1f' }}
+        >
+            <h1 className="text-sm font-semibold truncate" style={{ color: '#ededed' }}>{title}</h1>
+
+            {/* Breadcrumb */}
+            {currentOrg && (
+                <div className="flex items-center gap-1.5 text-xs" style={{ color: '#525252' }}>
+                    <span style={{ color: '#737373' }}>{currentOrg.name}</span>
+                    {currentProject && (
+                        <>
+                            <span>/</span>
+                            <span style={{ color: currentProject.color || '#10b981' }}>{currentProject.name}</span>
+                        </>
+                    )}
                 </div>
-            </div>
+            )}
         </header>
     )
 }

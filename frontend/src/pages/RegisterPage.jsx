@@ -1,11 +1,20 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Sparkles, AlertCircle } from 'lucide-react'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Spinner } from '../components/ui/Spinner'
+import { CheckSquare, AlertCircle } from 'lucide-react'
 import { authService } from '../services/authService'
 import { useAuthStore } from '../store/authStore'
+
+const inputStyle = {
+    width: '100%',
+    background: '#242424',
+    border: '1px solid #2a2a2a',
+    borderRadius: '8px',
+    padding: '10px 12px',
+    fontSize: '13px',
+    color: '#ededed',
+    outline: 'none',
+    transition: 'border-color 0.15s',
+}
 
 export const RegisterPage = () => {
     const [name, setName] = useState('')
@@ -21,7 +30,6 @@ export const RegisterPage = () => {
         e.preventDefault()
         setError('')
         setLoading(true)
-
         try {
             const { user, token } = await authService.register(name, email, password)
             login(user, token)
@@ -34,63 +42,73 @@ export const RegisterPage = () => {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[#0f0f0f] px-4">
+        <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0a0a0a' }}>
             <div className="w-full max-w-sm">
-                <div className="flex items-center justify-center gap-2 mb-8">
-                    <Sparkles className="w-8 h-8 text-indigo-500" />
-                    <span className="font-bold text-2xl text-white">PlanAI</span>
+                <div className="flex items-center justify-center gap-2.5 mb-8">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#052e16' }}>
+                        <CheckSquare className="w-5 h-5" style={{ color: '#10b981' }} />
+                    </div>
+                    <span className="font-bold text-xl" style={{ color: '#ededed' }}>DevFlow</span>
                 </div>
 
-                <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
-                    <h2 className="text-xl font-semibold text-white mb-6 text-center">Create Account</h2>
+                <div className="rounded-2xl border p-6" style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}>
+                    <h2 className="text-lg font-semibold text-center mb-5" style={{ color: '#ededed' }}>Create Account</h2>
 
                     {error && (
-                        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-start gap-2">
-                            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                            <p className="text-sm text-red-400">{error}</p>
+                        <div className="mb-4 p-3 rounded-lg flex items-start gap-2" style={{ background: '#2d0a0a', border: '1px solid #ef444433' }}>
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: '#ef4444' }} />
+                            <p className="text-xs" style={{ color: '#f87171' }}>{error}</p>
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm text-neutral-400 mb-1">Name</label>
-                            <Input
-                                required
-                                value={name}
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: '#a3a3a3' }}>Full Name</label>
+                            <input
+                                required value={name}
                                 onChange={e => setName(e.target.value)}
                                 placeholder="John Doe"
+                                style={inputStyle}
+                                onFocus={e => e.target.style.borderColor = '#10b981'}
+                                onBlur={e => e.target.style.borderColor = '#2a2a2a'}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm text-neutral-400 mb-1">Email</label>
-                            <Input
-                                type="email"
-                                required
-                                value={email}
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: '#a3a3a3' }}>Email</label>
+                            <input
+                                type="email" required value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 placeholder="you@example.com"
+                                style={inputStyle}
+                                onFocus={e => e.target.style.borderColor = '#10b981'}
+                                onBlur={e => e.target.style.borderColor = '#2a2a2a'}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm text-neutral-400 mb-1">Password</label>
-                            <Input
-                                type="password"
-                                required
-                                value={password}
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: '#a3a3a3' }}>Password</label>
+                            <input
+                                type="password" required value={password}
                                 onChange={e => setPassword(e.target.value)}
-                                placeholder="••••••••"
+                                placeholder="Min. 6 characters"
+                                style={inputStyle}
+                                onFocus={e => e.target.style.borderColor = '#10b981'}
+                                onBlur={e => e.target.style.borderColor = '#2a2a2a'}
                             />
                         </div>
-                        <Button type="submit" className="w-full" disabled={loading}>
-                            {loading ? <Spinner /> : 'Create Account'}
-                        </Button>
+                        <button
+                            type="submit" disabled={loading}
+                            className="w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+                            style={{ background: loading ? '#059669' : '#10b981', color: '#fff', opacity: loading ? 0.85 : 1 }}
+                        >
+                            {loading ? (
+                                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating...</>
+                            ) : 'Create Account'}
+                        </button>
                     </form>
 
-                    <p className="text-center text-sm text-neutral-500 mt-6">
+                    <p className="text-center text-xs mt-5" style={{ color: '#737373' }}>
                         Already have an account?{' '}
-                        <Link to="/login" className="text-indigo-400 hover:text-indigo-300">
-                            Sign in
-                        </Link>
+                        <Link to="/login" className="font-medium" style={{ color: '#10b981' }}>Sign in</Link>
                     </p>
                 </div>
             </div>

@@ -1,203 +1,146 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sparkles, FolderPlus, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, FolderPlus, Plus } from 'lucide-react'
 import { Sidebar } from '../components/layout/Sidebar'
 import { Navbar } from '../components/layout/Navbar'
-import { Button } from '../components/ui/Button'
-import { Badge } from '../components/ui/Badge'
-import { Spinner } from '../components/ui/Spinner'
-import { projectService } from '../services/projectService'
+import { useOrgStore } from '../store/orgStore'
+import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 
+const COLORS = [
+    { value: '#10b981', bg: '#052e16' },
+    { value: '#38bdf8', bg: '#0c1a2e' },
+    { value: '#f59e0b', bg: '#1c1200' },
+    { value: '#ef4444', bg: '#2d0a0a' },
+    { value: '#a855f7', bg: '#1a0a2e' },
+    { value: '#fb923c', bg: '#231200' },
+]
+
 export const CreateProjectPage = () => {
-    const [step, setStep] = useState(1)
-    const [ideaText, setIdeaText] = useState('')
-    const [type, setType] = useState('Web App')
-    const [teamSize, setTeamSize] = useState('Solo')
-    const [loading, setLoading] = useState(false)
-    const [aiOutput, setAiOutput] = useState(null)
-
     const navigate = useNavigate()
+    const { user } = useAuthStore()
+    const { currentOrg, addProjectToOrg, setCurrentProject } = useOrgStore()
+    const [form, setForm] = useState({ name: '', description: '', color: COLORS[0].value, teamSize: 'Solo' })
+    const [loading, setLoading] = useState(false)
 
-    const handleAnalyze = async () => {
-        if (!ideaText.trim()) return toast.error('Please describe your idea')
+    const handleCreate = async (e) => {
+        e.preventDefault()
+        if (!form.name.trim()) return toast.error('Project name is required')
+        if (!currentOrg) return toast.error('No organization selected')
         setLoading(true)
-        try {
-            const data = await projectService.analyzeIdea(ideaText, type, teamSize)
-            setAiOutput(data)
-            setStep(2)
-            toast.success('Analysis complete!')
-        } catch (err) {
-            toast.error('Failed to analyze idea')
-        } finally {
-            setLoading(false)
+        await new Promise(r => setTimeout(r, 400))
+        const newProject = {
+            id: Date.now().toString(),
+            orgId: currentOrg.id,
+            name: form.name.trim(),
+            description: form.description.trim(),
+            color: form.color,
+            teamSize: form.teamSize,
+            tasks: [],
+            members: currentOrg.members || [],
+            createdAt: new Date().toISOString(),
+            createdBy: user?.email
         }
-    }
-
-    const handleCreate = async () => {
-        setLoading(true)
-        try {
-            const project = await projectService.createProject({ aiOutput, ideaText })
-            toast.success('Project created successfully!')
-            navigate(`/project/${project.id || project._id}`)
-        } catch (err) {
-            toast.error('Failed to create project')
-        } finally {
-            setLoading(false)
-        }
+        addProjectToOrg(newProject)
+        setCurrentProject(newProject)
+        toast.success(`Project "${newProject.name}" created!`)
+        setLoading(false)
+        navigate(`/project/${newProject.id}`)
     }
 
     return (
-        <div className="min-h-screen bg-[#0f0f0f]">
+        <div className="min-h-screen" style={{ background: '#0a0a0a' }}>
             <Sidebar />
             <Navbar title="New Project" />
 
-            <main className="ml-[220px] pt-14 p-8">
-                <div className="max-w-3xl mx-auto">
+            <main className="ml-[240px] pt-14 p-8">
+                <div className="max-w-lg mx-auto">
                     <div className="flex items-center gap-4 mb-8">
-                        <button onClick={() => navigate('/dashboard')} className="p-2 bg-white/5 rounded-lg text-neutral-400 hover:text-white transition-colors">
-                            <ArrowLeft className="w-5 h-5" />
+                        <button onClick={() => navigate('/project-select')}
+                            className="p-2 rounded-lg transition-colors"
+                            style={{ color: '#737373' }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#ededed'}
+                            onMouseLeave={e => e.currentTarget.style.color = '#737373'}>
+                            <ArrowLeft className="w-4 h-4" />
                         </button>
-                        <h2 className="text-2xl font-bold text-white">New Project</h2>
+                        <h2 className="text-xl font-bold" style={{ color: '#ededed' }}>New Project</h2>
                     </div>
 
-                    {step === 1 ? (
-                        <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
+                    <form onSubmit={handleCreate} className="rounded-2xl border p-6 space-y-5"
+                        style={{ background: '#1c1c1c', borderColor: '#2a2a2a' }}>
+
+                        <div>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: '#a3a3a3' }}>Project Name *</label>
+                            <input
+                                value={form.name}
+                                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                                placeholder="e.g. Website Redesign"
+                                className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none"
+                                style={{ background: '#242424', borderColor: '#2a2a2a', color: '#ededed' }}
+                                onFocus={e => e.target.style.borderColor = '#10b981'}
+                                onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: '#a3a3a3' }}>Description</label>
+                            <textarea
+                                value={form.description}
+                                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                                placeholder="Brief project description..."
+                                rows={3}
+                                className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none resize-none"
+                                style={{ background: '#242424', borderColor: '#2a2a2a', color: '#ededed' }}
+                                onFocus={e => e.target.style.borderColor = '#10b981'}
+                                onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium mb-1.5" style={{ color: '#a3a3a3' }}>Team Size</label>
+                            <select
+                                value={form.teamSize}
+                                onChange={e => setForm(p => ({ ...p, teamSize: e.target.value }))}
+                                className="w-full px-3 py-2.5 rounded-lg border text-sm focus:outline-none appearance-none"
+                                style={{ background: '#242424', borderColor: '#2a2a2a', color: '#ededed' }}>
+                                <option>Solo</option>
+                                <option>2-5 people</option>
+                                <option>6-15 people</option>
+                                <option>15+ people</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium mb-2" style={{ color: '#a3a3a3' }}>Color Tag</label>
+                            <div className="flex items-center gap-3">
+                                {COLORS.map(c => (
+                                    <button
+                                        key={c.value}
+                                        type="button"
+                                        onClick={() => setForm(p => ({ ...p, color: c.value }))}
+                                        className="w-7 h-7 rounded-full border-2 transition-all"
+                                        style={{
+                                            background: c.value,
+                                            borderColor: form.color === c.value ? '#ededed' : 'transparent',
+                                            transform: form.color === c.value ? 'scale(1.2)' : 'scale(1)'
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all"
+                            style={{ background: loading ? '#059669' : '#10b981', color: '#fff' }}>
                             {loading ? (
-                                <div className="py-20 flex flex-col items-center justify-center space-y-4">
-                                    <Spinner className="w-10 h-10 text-indigo-500" />
-                                    <p className="text-neutral-400">AI is analyzing your idea...</p>
-                                </div>
+                                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating...</>
                             ) : (
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-sm font-medium text-white mb-2">Describe your project idea</label>
-                                        <textarea
-                                            value={ideaText}
-                                            onChange={e => setIdeaText(e.target.value)}
-                                            className="w-full min-h-[140px] bg-[#242424] border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                                            placeholder="e.g. I want to build a food delivery app where restaurants can list their menu and customers can order with real-time tracking..."
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-1">Project Type</label>
-                                            <select
-                                                value={type}
-                                                onChange={e => setType(e.target.value)}
-                                                className="w-full bg-[#242424] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
-                                            >
-                                                <option>Web App</option>
-                                                <option>Mobile App</option>
-                                                <option>API</option>
-                                                <option>Other</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-neutral-400 mb-1">Team Size</label>
-                                            <select
-                                                value={teamSize}
-                                                onChange={e => setTeamSize(e.target.value)}
-                                                className="w-full bg-[#242424] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 appearance-none"
-                                            >
-                                                <option>Solo</option>
-                                                <option>2-5 people</option>
-                                                <option>6-15 people</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <Button onClick={handleAnalyze} className="w-full py-3" disabled={loading}>
-                                        <Sparkles className="w-4 h-4 mr-2" />
-                                        Analyze with AI
-                                    </Button>
-                                </div>
+                                <><FolderPlus className="w-4 h-4" /> Create Project</>
                             )}
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
-                                <h3 className="text-lg font-semibold text-white mb-3">Summary</h3>
-                                <p className="text-neutral-400 text-sm leading-relaxed">{aiOutput?.summary}</p>
-                            </div>
-
-                            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
-                                <h3 className="text-lg font-semibold text-white mb-4">Requirements</h3>
-                                <ul className="list-decimal list-inside space-y-2 text-sm text-neutral-400">
-                                    {aiOutput?.requirements?.map((req, i) => (
-                                        <li key={i}>{req}</li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
-                                <h3 className="text-lg font-semibold text-white mb-4">Features</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {aiOutput?.features?.map((f, i) => (
-                                        <div key={i} className="bg-[#242424] border border-white/5 rounded-lg p-4">
-                                            <p className="font-bold text-white text-sm mb-1">{f.name}</p>
-                                            <p className="text-xs text-neutral-500">{f.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
-                                <h3 className="text-lg font-semibold text-white mb-4">Generated Tasks</h3>
-                                <div className="space-y-3">
-                                    {aiOutput?.tasks?.map((t, i) => (
-                                        <div key={i} className="flex items-center justify-between bg-[#242424] border border-white/5 rounded-lg p-3">
-                                            <div>
-                                                <p className="text-sm font-medium text-white">{t.title}</p>
-                                                <p className="text-xs text-neutral-500 mt-1">{t.category}</p>
-                                            </div>
-                                            <Badge variant={t.priority}>{t.priority}</Badge>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-white mb-4">Testing Checklist</h3>
-                                    <div className="space-y-3">
-                                        {aiOutput?.testing_checklist?.map((item, i) => (
-                                            <div key={i} className="flex items-start gap-3">
-                                                <CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-                                                <p className="text-sm text-neutral-400">{item}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-white mb-4">Deployment Checklist</h3>
-                                    <div className="space-y-3">
-                                        {aiOutput?.deployment_checklist?.map((item, i) => (
-                                            <div key={i} className="flex items-start gap-3">
-                                                <CheckCircle2 className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-                                                <p className="text-sm text-neutral-400">{item}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-4 pt-4">
-                                <Button variant="ghost" onClick={() => setStep(1)} className="flex-1 py-3" disabled={loading}>
-                                    Edit Idea
-                                </Button>
-                                <Button onClick={handleCreate} className="flex-1 py-3" disabled={loading}>
-                                    {loading ? <Spinner /> : (
-                                        <>
-                                            <FolderPlus className="w-4 h-4 mr-2" />
-                                            Create Project
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+                        </button>
+                    </form>
                 </div>
             </main>
         </div>
